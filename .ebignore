@@ -1,0 +1,42 @@
+# What Elastic Beanstalk uploads. The prebuild hook compiles on the server,
+# so we ship source (packages/api, packages/shared) + workspace manifests,
+# but NOT node_modules, built output, local env files, or the frontends.
+
+# Dependencies (reinstalled on server by the prebuild hook)
+node_modules/
+.pnpm-store/
+
+# Build outputs (regenerated on server)
+dist/
+build/
+.vite/
+
+# Local env files and secrets
+.env
+.env.local
+.env.dev
+.env.production
+.env.*.local
+
+# Frontends are deployed separately to S3/CloudFront — not needed on the API host
+apps/web/
+apps/admin/
+
+# Local uploads (disk driver)
+uploads/
+
+# Docs / deploy scripts not needed at runtime
+docs/
+deploy/
+
+# OS / IDE / logs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+*.tsbuildinfo
+coverage/
+
+# Requirements / unrelated workspace
+requirements/

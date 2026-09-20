@@ -1,0 +1,17 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="KinamNepal logo">
+  <rect x="8" y="8" width="184" height="184" rx="44" fill="#be123c"/>
+  <rect x="8" y="8" width="184" height="184" rx="44" fill="url(#kn-grad)"/>
+  <defs>
+    <linearGradient id="kn-grad" x1="8" y1="8" x2="192" y2="192" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e11d48"/>
+      <stop offset="1" stop-color="#9f1239"/>
+    </linearGradient>
+  </defs>
+  <g fill="#ffffff">
+    <rect x="52" y="52" width="20" height="96" rx="6"/>
+    <path d="M76 100 L120 54 a8 8 0 0 1 12 0 l4 4 a8 8 0 0 1 0 11 L96 108 Z"/>
+    <path d="M76 100 L120 146 a8 8 0 0 0 12 0 l4 -4 a8 8 0 0 0 0 -11 L96 92 Z"/>
+  </g>
+  <path d="M150 56 L150 96 L128 78 Z" fill="#ffffff" opacity="0.85"/>
+  <circle cx="139" cy="70" r="4" fill="#be123c"/>
+</svg>

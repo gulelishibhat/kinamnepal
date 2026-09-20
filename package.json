@@ -1,0 +1,25 @@
+{
+  "name": "mkelectricshop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MK Electric Shop — full-stack e-commerce monorepo",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @mkelectric/api --filter @mkelectric/web --filter @mkelectric/admin --filter @mkelectric/shared dev",
+    "dev:web": "pnpm --filter @mkelectric/web dev",
+    "dev:admin": "pnpm --filter @mkelectric/admin dev",
+    "dev:api": "pnpm --filter @mkelectric/api dev",
+    "build": "pnpm --filter @mkelectric/shared build && pnpm --parallel --filter @mkelectric/api --filter @mkelectric/web --filter @mkelectric/admin build",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check",
+    "db:generate": "pnpm --filter @mkelectric/api db:generate",
+    "db:migrate": "pnpm --filter @mkelectric/api db:migrate",
+    "db:seed": "pnpm --filter @mkelectric/api db:seed",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

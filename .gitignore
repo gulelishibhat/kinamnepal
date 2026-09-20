@@ -1,0 +1,57 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ─── Build outputs ────────────────────────────────────────────────────────────
+dist/
+build/
+.vite/
+
+# ─── Environment / secrets — NEVER commit real env files ──────────────────────
+# Only *.example files are safe to commit.
+.env
+.env.local
+.env.dev
+.env.production
+.env.staging
+.env.*.local
+
+# ─── AWS / deploy artefacts ───────────────────────────────────────────────────
+# These contain generated IAM/deploy helpers — keep them local.
+deploy/eb-s3-policy.json
+deploy/iam-instance-role-policy.json
+deploy/ec2-trust-policy.json
+deploy/cors-option.json
+deploy/email-options.json
+deploy/pay-options.json
+deploy/ses-send-policy.json
+deploy/verify-urls.json
+# Keep the useful scripts (make-bundle.ps1, deploy-frontend.ps1/sh, Procfile)
+
+# ─── Local uploads (disk storage driver) ────────────────────────────────────
+uploads/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Docker volumes (local dev) ──────────────────────────────────────────────
+postgres_data/
+minio_data/
+
+# ─── TypeScript ──────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Test / coverage ─────────────────────────────────────────────────────────
+coverage/

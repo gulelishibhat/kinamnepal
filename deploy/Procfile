@@ -1,0 +1,3 @@
+# Elastic Beanstalk start command (copy to repo root as "Procfile" if using EB).
+# EB runs `npm start` by default; this makes the start command explicit.
+web: node packages/api/dist/index.js

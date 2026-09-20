@@ -1,0 +1,49 @@
+{
+  "CallerReference": "kinamnepal-admin-2026",
+  "Aliases": { "Quantity": 1, "Items": ["admin.kinamnepal.com"] },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "admin-s3-website",
+        "DomainName": "mkelectric-admin-prod-772428488343.s3-website-us-west-2.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only",
+          "OriginSslProtocols": { "Quantity": 1, "Items": ["TLSv1.2"] },
+          "OriginReadTimeout": 30,
+          "OriginKeepaliveTimeout": 5
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "admin-s3-website",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] }
+    },
+    "Compress": true,
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  },
+  "CustomErrorResponses": {
+    "Quantity": 2,
+    "Items": [
+      { "ErrorCode": 403, "ResponseCode": "200", "ResponsePagePath": "/index.html", "ErrorCachingMinTTL": 10 },
+      { "ErrorCode": 404, "ResponseCode": "200", "ResponsePagePath": "/index.html", "ErrorCachingMinTTL": 10 }
+    ]
+  },
+  "Comment": "KinamNepal admin",
+  "Enabled": true,
+  "ViewerCertificate": {
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:772428488343:certificate/67e62492-66f1-485f-ab05-2f38b8f4297b",
+    "SSLSupportMethod": "sni-only",
+    "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "HttpVersion": "http2and3",
+  "PriceClass": "PriceClass_All"
+}

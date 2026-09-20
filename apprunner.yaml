@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════
+#  AWS App Runner — SOURCE-BASED build (no Docker required).
+#
+#  App Runner connects to your Git repo, runs the build commands below,
+#  then starts the API. Place this file at the repository ROOT.
+#  App Runner runs all commands from the repository root.
+#
+#  Runtime: Node.js 22 (matches the project's engines and local Node).
+#  NOTE: AWS App Runner closed to NEW customers on 2026-04-30. If you
+#  cannot create a service, use Elastic Beanstalk instead (also no
+#  Docker) — see docs/DEPLOYMENT.md, "Alternative: Elastic Beanstalk".
+# ═══════════════════════════════════════════════════════════════════
+version: 1.0
+runtime: nodejs22
+
+build:
+  commands:
+    pre-build:
+      # App Runner's Node image doesn't ship pnpm — install it first.
+      - npm install -g pnpm@9.15.9
+    build:
+      # Install only the API + its shared dependency (and their deps).
+      - pnpm install --frozen-lockfile=false --filter @mkelectric/shared... --filter @mkelectric/api...
+      - pnpm --filter @mkelectric/shared build
+      - pnpm --filter @mkelectric/api build
+
+run:
+  runtime-version: 22.11.0
+  command: node packages/api/dist/index.js
+  network:
+    port: 8080
+  env:
+    # Non-secret runtime config. Secrets (DATABASE_URL, JWT_*, QR id) must
+    # be added as App Runner "environment secrets" pointing at Secrets
+    # Manager / SSM — configured in the console or service JSON, not here.
+    - name: APP_ENV
+      value: production
+    - name: PORT
+      value: "8080"
+    - name: STORAGE_DRIVER
+      value: s3
+    - name: S3_REGION
+      value: us-west-2
+    - name: S3_BUCKET
+      value: mkelectric-media-prod
+    - name: STORE_NAME
+      value: MK Electric Shop
+    - name: STORE_CURRENCY
+      value: NPR
+    - name: COOKIE_SAMESITE
+      value: lax
+    - name: COOKIE_SECURE
+      value: "true"
+    # CORS_ORIGINS + S3_PUBLIC_BASE_URL: set to your real frontend/CDN URLs
+    # in the App Runner console once CloudFront domains exist.

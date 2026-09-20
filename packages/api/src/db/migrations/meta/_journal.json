@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789526408908,
+      "tag": "0000_thin_golden_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789605201905,
+      "tag": "0001_faithful_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789606376720,
+      "tag": "0002_violet_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789747213816,
+      "tag": "0003_aromatic_paibok",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789764986641,
+      "tag": "0004_wild_the_enforcers",
+      "breakpoints": true
+    }
+  ]
+}

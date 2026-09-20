@@ -1,0 +1,276 @@
+{
+  "common": {
+    "appName": "KinamNepal",
+    "loading": "Loading...",
+    "error": "Something went wrong. Please try again.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "viewAll": "View All",
+    "noResults": "No results found",
+    "required": "This field is required",
+    "currency": "NPR"
+  },
+  "nav": {
+    "home": "Home",
+    "categories": "Categories",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "admin": "Admin"
+  },
+  "home": {
+    "hero": {
+      "title": "Your Complete Electrical Solutions Store",
+      "subtitle": "Quality electrical goods for your home — switches, wiring, panels, lighting and more.",
+      "cta": "Shop Now"
+    },
+    "featured": "Featured Products",
+    "newArrivals": "New Arrivals",
+    "categories": "Shop by Category"
+  },
+  "product": {
+    "addToCart": "Add to Cart",
+    "buyNow": "Buy Now",
+    "outOfStock": "Out of Stock",
+    "inStock": "In Stock",
+    "unitsRemaining": "{{count}} units remaining",
+    "lowStock": "Only {{count}} left!",
+    "sku": "SKU",
+    "brand": "Brand",
+    "category": "Category",
+    "specifications": "Specifications",
+    "description": "Description",
+    "images": "Images",
+    "price": "Price",
+    "unit": "Unit",
+    "selectQuantity": "Quantity",
+    "quantityExceedsStock": "Maximum available quantity is {{max}}"
+  },
+  "search": {
+    "placeholder": "Search for anything on KinamNepal...",
+    "results": "{{count}} results for \"{{query}}\"",
+    "noResults": "No products found for \"{{query}}\"",
+    "filters": {
+      "title": "Filters",
+      "category": "Category",
+      "priceRange": "Price Range",
+      "brand": "Brand",
+      "availability": "Availability",
+      "inStockOnly": "In stock only",
+      "minPrice": "Min price",
+      "maxPrice": "Max price",
+      "apply": "Apply Filters",
+      "reset": "Reset"
+    },
+    "sort": {
+      "label": "Sort by",
+      "newest": "Newest",
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low",
+      "bestMatch": "Best Match"
+    }
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty",
+    "emptySubtext": "Looks like you haven't added anything yet.",
+    "shopNow": "Shop Now",
+    "items": "{{count}} item(s)",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "checkout": "Proceed to Checkout",
+    "continueShopping": "Continue Shopping",
+    "stockWarning": "{{name}} is no longer available in the selected quantity.",
+    "priceChanged": "The price of {{name}} has changed to NPR {{price}}."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "steps": {
+      "delivery": "Delivery",
+      "review": "Review",
+      "payment": "Payment"
+    },
+    "guest": {
+      "title": "Contact Information",
+      "name": "Full Name",
+      "phone": "Phone Number",
+      "email": "Email Address (optional, for confirmation)",
+      "orLogin": "Already have an account?",
+      "loginLink": "Log in"
+    },
+    "delivery": {
+      "title": "Delivery Address",
+      "street": "Street Address",
+      "city": "City",
+      "district": "District",
+      "savedAddresses": "Saved Addresses",
+      "addNew": "Add New Address"
+    },
+    "review": {
+      "title": "Review Order",
+      "items": "Order Items",
+      "deliveryTo": "Delivering to",
+      "editCart": "Edit Cart",
+      "confirmAndPay": "Confirm & Pay"
+    },
+    "payment": {
+      "title": "Payment",
+      "scanQr": "Scan QR Code to Pay",
+      "amount": "Amount to Pay",
+      "instructions": "1. Open your banking app or eSewa/Khalti\n2. Scan the QR code\n3. Enter the exact amount: NPR {{amount}}\n4. Complete the payment\n5. Wait for confirmation",
+      "timer": "QR expires in {{time}}",
+      "expired": "QR code has expired.",
+      "retry": "Generate New QR",
+      "orderRef": "Order Reference: {{orderNumber}}",
+      "waitingConfirmation": "Waiting for payment confirmation..."
+    }
+  },
+  "order": {
+    "success": {
+      "title": "Order Placed!",
+      "subtitle": "Thank you for your order.",
+      "orderNumber": "Order Number",
+      "paymentPending": "Your payment is pending confirmation.",
+      "viewOrder": "View Order",
+      "continueShopping": "Continue Shopping",
+      "registerPrompt": "Create an account to track your orders anytime.",
+      "registerCta": "Create Account"
+    },
+    "status": {
+      "pending_payment": "Pending Payment",
+      "confirmed": "Confirmed",
+      "dispatched": "Dispatched",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "payment_expired": "Payment Expired"
+    },
+    "track": {
+      "title": "Track Your Order",
+      "orderNumber": "Order Number",
+      "phone": "Phone Number",
+      "submit": "Track Order",
+      "notFound": "No order found with this number and phone."
+    },
+    "history": {
+      "title": "My Orders",
+      "empty": "You haven't placed any orders yet.",
+      "orderDate": "Order Date",
+      "total": "Total",
+      "status": "Status",
+      "viewDetails": "View Details"
+    },
+    "detail": {
+      "title": "Order Details",
+      "items": "Items",
+      "delivery": "Delivery Address",
+      "payment": "Payment",
+      "timeline": "Order Timeline"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "email": "Email Address",
+      "password": "Password",
+      "forgotPassword": "Forgot Password?",
+      "submit": "Login",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Create one"
+    },
+    "register": {
+      "title": "Create Account",
+      "name": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "submit": "Create Account",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Login"
+    },
+    "logout": {
+      "confirm": "Are you sure you want to logout?"
+    },
+    "errors": {
+      "invalidCredentials": "Invalid email or password.",
+      "emailTaken": "An account with this email already exists.",
+      "tooManyAttempts": "Too many failed attempts. Try again in {{minutes}} minutes.",
+      "sessionExpired": "Your session has expired. Please login again."
+    }
+  },
+  "profile": {
+    "title": "My Profile",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "language": "Language",
+    "addresses": "Saved Addresses",
+    "save": "Save Changes",
+    "changePassword": "Change Password"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Dashboard",
+      "todayOrders": "Today's Orders",
+      "pendingOrders": "Pending Orders",
+      "lowStockAlerts": "Low Stock Alerts",
+      "newCustomers": "New Customers",
+      "recentOrders": "Recent Orders",
+      "connected": "Connected",
+      "reconnecting": "Reconnecting..."
+    },
+    "orders": {
+      "title": "Orders",
+      "orderNumber": "Order #",
+      "customer": "Customer",
+      "status": "Status",
+      "date": "Date",
+      "total": "Total",
+      "actions": "Actions",
+      "confirmPayment": "Confirm Payment",
+      "dispatch": "Dispatch",
+      "deliver": "Mark Delivered",
+      "cancel": "Cancel Order",
+      "delete": "Delete Order",
+      "deleteConfirm": "Are you sure you want to delete this order? This action cannot be undone.",
+      "cancelConfirm": "Are you sure you want to cancel this order?",
+      "transactionRef": "Transaction Reference (optional)"
+    },
+    "inventory": {
+      "title": "Inventory",
+      "addProduct": "Add Product",
+      "editProduct": "Edit Product",
+      "archiveProduct": "Archive",
+      "stockCount": "Stock",
+      "lowStock": "Low Stock",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV"
+    },
+    "customers": {
+      "title": "Customers",
+      "totalOrders": "Total Orders",
+      "lastOrder": "Last Order",
+      "joined": "Joined",
+      "viewProfile": "View Profile"
+    }
+  },
+  "errors": {
+    "notFound": "Page not found.",
+    "unauthorized": "You are not authorised to view this page.",
+    "serverError": "Server error. Please try again later.",
+    "networkError": "Network error. Check your connection."
+  }
+}
