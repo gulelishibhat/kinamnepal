@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { useMyProducts, useDeleteMyProduct } from '@/hooks/useSellerInventory';
+import { api } from '@/lib/api';
 import ProductFormModal from '@/components/ProductFormModal';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
@@ -12,18 +15,45 @@ export default function InventoryPage() {
   const [search, setSearch] = useState<string | undefined>(undefined);
   const [editId, setEditId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const del = useDeleteMyProduct();
 
   const { data, isLoading } = useMyProducts({ page, search });
   const products = data?.data ?? [];
   const meta = data?.meta;
 
+  async function downloadInventory() {
+    setDownloading(true);
+    try {
+      const res = await api.get('/products/seller/mine/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not download inventory. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">My Inventory</h1>
-        <button onClick={() => setShowCreate(true)} className="btn-primary btn-sm px-4 py-2">+ Add Listing</button>
+        <div className="flex gap-2">
+          <button onClick={downloadInventory} disabled={downloading} className="btn-secondary btn-sm px-4 py-2 disabled:opacity-50">
+            {downloading ? 'Preparing…' : '↓ Download Inventory'}
+          </button>
+          <button onClick={() => setShowBulk(true)} className="btn-secondary btn-sm px-4 py-2">↑ Bulk Upload</button>
+          <button onClick={() => setShowCreate(true)} className="btn-primary btn-sm px-4 py-2">+ Add Listing</button>
+        </div>
       </div>
 
       <div className="card p-4">
@@ -98,6 +128,8 @@ export default function InventoryPage() {
       </div>
 
       <ProductFormModal open={showCreate || !!editId} onClose={() => { setShowCreate(false); setEditId(null); }} editId={editId} />
+
+      <BulkUploadModal open={showBulk} onClose={() => setShowBulk(false)} />
 
       <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Remove Listing">
         <p className="text-sm text-gray-600 mb-6">Remove this listing from the marketplace? It will no longer be visible to buyers.</p>

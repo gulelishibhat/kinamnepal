@@ -17,13 +17,22 @@ export const specificationSchema = z.object({
   value: z.string().min(1),
 });
 
-// ─── Product variant (size / colour with its own stock) ─────────────────────
-// Lightweight: variants describe availability + stock per size/colour combo.
+// ─── Product variant (selectable option with its own stock + price) ──────────
+// Variants describe availability + stock per option. Two free-text axes are
+// available: `size` and `color` (repurposed per product, e.g. size = spec /
+// wattage / switch type, color = finish / bulb colour).
+//  • `price`  — optional per-variant selling price. When set, selecting the
+//               variant overrides the product's base price (B2 pricing).
+//  • `mrp`    — optional per-variant original price for a strike-through.
+//  • `label`  — optional display label for the option (e.g. the full spec).
 // Total product stock is the sum of variant stock when variants are present.
 export const productVariantSchema = z.object({
-  size: z.string().max(40).optional().default(''),
-  color: z.string().max(40).optional().default(''),
+  size: z.string().max(80).optional().default(''),
+  color: z.string().max(80).optional().default(''),
+  label: z.string().max(160).optional().default(''),
   stock: z.number().int().nonnegative().default(0),
+  price: z.number().positive().optional(),
+  mrp: z.number().positive().optional(),
 });
 
 // ─── Category schemas ───────────────────────────────────────────────────────
@@ -38,6 +47,7 @@ export const categorySchema = z.object({
 export const createCategorySchema = z.object({
   name: bilingualTextSchema,
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase with hyphens only'),
+  parentId: z.string().uuid().nullable().optional(),
   sortOrder: z.number().int().nonnegative().optional().default(0),
 });
 
@@ -52,6 +62,9 @@ export const productSchema = z.object({
   brand: z.string().min(1),
   sku: z.string(),
   price: z.number().positive(),
+  // Original (pre-discount) price. Null when there's no discount.
+  mrp: z.number().positive().nullable().optional(),
+  discountPercent: z.number().int().min(0).max(100).default(0),
   unit: productUnitSchema,
   stockQuantity: z.number().int().nonnegative(),
   lowStockThreshold: z.number().int().nonnegative().default(5),
@@ -80,6 +93,9 @@ export const createProductSchema = z.object({
   // SKU is optional — the API auto-generates one if left blank.
   sku: z.string().max(50).optional().default(''),
   price: z.number().positive('Price must be greater than 0'),
+  // Optional discount: mrp = original price, discountPercent = % off (0–100).
+  mrp: z.number().positive().nullable().optional(),
+  discountPercent: z.number().int().min(0).max(100).optional().default(0),
   unit: productUnitSchema,
   stockQuantity: z.number().int().nonnegative('Stock cannot be negative'),
   lowStockThreshold: z.number().int().nonnegative().optional().default(5),
@@ -90,6 +106,27 @@ export const createProductSchema = z.object({
 });
 
 export const updateProductSchema = createProductSchema.partial();
+
+// ─── Bulk upload (CSV) ───────────────────────────────────────────────────────
+// One row of the seller's CSV. `category` is the category NAME (matched
+// server-side to its id). Coerced from strings since CSV values are text.
+export const bulkProductRowSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(255),
+  description: z.string().optional().default(''),
+  category: z.string().min(1, 'Category is required'),
+  brand: z.string().optional().default(''),
+  sku: z.string().max(50).optional().default(''),
+  price: z.coerce.number().positive('Price must be greater than 0'),
+  unit: z.string().optional().default('piece'),
+  stock: z.coerce.number().int().nonnegative('Stock cannot be negative'),
+  condition: z.string().optional().default('brand_new'),
+});
+
+// Lenient wrapper — rows are validated per-row in the handler so that good rows
+// still import while bad rows are reported individually (not all-or-nothing).
+export const bulkProductUploadSchema = z.object({
+  rows: z.array(z.record(z.unknown())).min(1, 'No rows').max(500, 'Too many rows (max 500)'),
+});
 
 export const productQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
@@ -125,3 +162,5 @@ export type UpdateProductInput = z.input<typeof updateProductSchema>;
 export type ProductQuery = z.infer<typeof productQuerySchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type BulkProductRow = z.input<typeof bulkProductRowSchema>;
+export type BulkProductUploadInput = z.input<typeof bulkProductUploadSchema>;

@@ -142,6 +142,8 @@ export const categories = pgTable('categories', {
   nameEn: varchar('name_en', { length: 100 }).notNull(),
   nameNe: varchar('name_ne', { length: 100 }).notNull(),
   slug: varchar('slug', { length: 100 }).notNull().unique(),
+  // Self-reference: null = top-level category, else the parent's id (subcategory).
+  parentId: uuid('parent_id'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -163,7 +165,12 @@ export const products = pgTable(
     sellerId: uuid('seller_id').references(() => sellers.id),
     brand: varchar('brand', { length: 100 }).notNull(),
     sku: varchar('sku', { length: 50 }).notNull().unique(),
+    // `price` is the actual selling price the customer pays. When a product is
+    // discounted, `mrp` holds the original (pre-discount) price and
+    // `discountPercent` the percentage off (0 = no discount).
     price: decimal('price', { precision: 12, scale: 2 }).notNull(),
+    mrp: decimal('mrp', { precision: 12, scale: 2 }),
+    discountPercent: integer('discount_percent').notNull().default(0),
     unit: productUnitEnum('unit').notNull().default('piece'),
     stockQuantity: integer('stock_quantity').notNull().default(0),
     lowStockThreshold: integer('low_stock_threshold').notNull().default(5),

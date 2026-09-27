@@ -57,16 +57,25 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
-      {/* Hero banner */}
-      <section className="rounded-2xl overflow-hidden shadow-sm">
-        <Link to="/products" aria-label="Shop now" className="block">
-          <img
-            src="/hero-banner.png"
-            alt="KinamNepal — Shop anything, delivered to Pokhara. Electronics, Fashion, Accessories, Home & more."
-            className="w-full h-auto block"
-            loading="eager"
-          />
-        </Link>
+      {/* Hero banner with clickable zones over the image (image-map style).
+          The banner art already contains a "Shop Now" button on the lower-left;
+          we place an invisible Shop link over it, and a "Become a Seller" link
+          in the empty space to its right. Positions are % so they scale. */}
+      <section className="rounded-2xl overflow-hidden shadow-sm relative">
+        <img
+          src="/hero-banner.png"
+          alt="KinamNepal — Shop anything, delivered to Pokhara. Electronics, Fashion, Accessories, Home & more."
+          className="w-full h-auto block"
+          loading="eager"
+        />
+
+        {/* Shop Now — clickable zone over the "Shop Now" button in the art */}
+        <Link
+          to="/products"
+          aria-label="Shop now"
+          className="absolute"
+          style={{ left: '3.5%', top: '62%', width: '20%', height: '13%' }}
+        />
       </section>
 
       {/* Categories */}

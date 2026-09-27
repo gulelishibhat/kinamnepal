@@ -18,6 +18,7 @@ export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   const params = {
     page: Number(searchParams.get('page') ?? 1),
@@ -52,11 +53,11 @@ export default function ProductsPage() {
   const meta = data?.meta;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Filters sidebar */}
-        <aside className="w-full md:w-64 shrink-0">
-          <div className="card p-4 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="flex flex-row gap-3 sm:gap-6 md:gap-8 items-start">
+        {/* Filters sidebar — stays on the left on every screen size */}
+        <aside className="w-36 sm:w-56 md:w-64 shrink-0 sticky top-4 self-start">
+          <div className="card p-2.5 sm:p-4 space-y-4 sm:space-y-6">
             <h2 className="font-semibold text-gray-900">{t('search.filters.title')}</h2>
 
             {/* Search */}
@@ -70,32 +71,77 @@ export default function ProductsPage() {
               />
             </div>
 
-            {/* Categories */}
+            {/* Categories (top-level → subcategories) */}
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">{t('search.filters.category')}</p>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <button
-                  onClick={() => updateParam('categoryId', undefined)}
+                  onClick={() => { updateParam('categoryId', undefined); setExpandedCat(null); }}
                   className={`w-full text-left text-sm px-2 py-1.5 rounded-lg transition-colors ${
                     !params.categoryId ? 'bg-primary-100 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   All Categories
                 </button>
-                {categories?.map((cat: any) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => updateParam('categoryId', cat.id)}
-                    className={`w-full flex items-center justify-between text-left text-sm px-2 py-1.5 rounded-lg transition-colors ${
-                      params.categoryId === cat.id ? 'bg-primary-100 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span>{locale === 'ne' ? cat.nameNe : cat.nameEn}</span>
-                    {typeof cat.adCount === 'number' && (
-                      <span className="text-xs text-gray-400">{cat.adCount}</span>
-                    )}
-                  </button>
-                ))}
+                {categories?.map((cat: any) => {
+                  const name = locale === 'ne' ? cat.nameNe : cat.nameEn;
+                  const children: any[] = cat.children ?? [];
+                  const isExpanded = expandedCat === cat.id || children.some((ch) => ch.id === params.categoryId);
+                  const isActiveTop = params.categoryId === cat.id;
+                  return (
+                    <div key={cat.id}>
+                      <button
+                        onClick={() => {
+                          // Clicking a top category filters by it AND reveals its subcategories.
+                          updateParam('categoryId', cat.id);
+                          setExpandedCat(isExpanded && isActiveTop ? null : cat.id);
+                        }}
+                        className={`w-full flex items-center justify-between text-left text-sm px-2 py-1.5 rounded-lg transition-colors ${
+                          isActiveTop ? 'bg-primary-100 text-primary-700 font-medium' : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          {children.length > 0 && (
+                            <svg
+                              className={`w-3.5 h-3.5 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                              viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+                            >
+                              <path fillRule="evenodd" d="M7.293 4.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414-1.414L11.586 10 7.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          <span>{name}</span>
+                        </span>
+                        {typeof cat.totalAdCount === 'number' && (
+                          <span className="text-xs text-gray-400">{cat.totalAdCount}</span>
+                        )}
+                      </button>
+
+                      {/* Subcategory list — revealed when the top category is expanded */}
+                      {isExpanded && children.length > 0 && (
+                        <div className="ml-3 pl-2 border-l border-gray-200 mt-0.5 mb-1 space-y-0.5">
+                          {children.map((sub: any) => {
+                            const subName = locale === 'ne' ? sub.nameNe : sub.nameEn;
+                            const isActiveSub = params.categoryId === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => updateParam('categoryId', sub.id)}
+                                className={`w-full flex items-center justify-between text-left text-sm px-2 py-1 rounded-lg transition-colors ${
+                                  isActiveSub ? 'bg-primary-100 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                                }`}
+                              >
+                                <span>{subName}</span>
+                                {typeof sub.adCount === 'number' && sub.adCount > 0 && (
+                                  <span className="text-xs text-gray-400">{sub.adCount}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -169,15 +215,15 @@ export default function ProductsPage() {
         </aside>
 
         {/* Products grid */}
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <p className="text-xs sm:text-sm text-gray-500">
               {meta ? t('search.results', { count: meta.total, query: search || 'all' }) : ''}
             </p>
             <select
               value={params.sort}
               onChange={(e) => updateParam('sort', e.target.value)}
-              className="input w-auto text-sm"
+              className="input w-auto text-xs sm:text-sm py-1.5"
             >
               <option value="newest">{t('search.sort.newest')}</option>
               <option value="price_asc">{t('search.sort.priceAsc')}</option>
@@ -193,7 +239,7 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                 {products.map((product: any) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

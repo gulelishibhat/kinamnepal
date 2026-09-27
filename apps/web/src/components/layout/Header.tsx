@@ -101,6 +101,19 @@ export default function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 sm:gap-4 ml-auto shrink-0">
+            {/* Sell on KinamNepal — prominent, always visible */}
+            {!isAuthPage && (
+              <a
+                href={`${import.meta.env.VITE_SELLER_URL ?? '#'}/register`}
+                className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 border border-primary-600 hover:bg-primary-50 rounded-lg px-3 py-2 transition-colors min-h-0 min-w-0 whitespace-nowrap"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Sell on KinamNepal
+              </a>
+            )}
+
             {/* Cart */}
             <Link
               to="/cart"
@@ -228,6 +241,12 @@ export default function Header() {
             )}
             {t('nav.cart')}
           </Link>
+          <a href={`${import.meta.env.VITE_SELLER_URL ?? '#'}/register`} className="flex flex-col items-center gap-1 text-xs text-primary-700 font-medium min-w-[44px]">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            Sell
+          </a>
           <Link to={user ? '/orders' : '/login'} className="flex flex-col items-center gap-1 text-xs text-gray-500 hover:text-primary-600 min-w-[44px]">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

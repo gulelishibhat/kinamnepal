@@ -24,6 +24,9 @@ export const deliveryAddressSchema = z.object({
 export const cartItemSchema = z.object({
   productId: z.string().uuid(),
   quantity: z.number().int().positive('Quantity must be at least 1'),
+  // Optional selected variant label (e.g. "1M 10A 1 Way Switch (7000)" or
+  // "B22 / Warm White"). Used to price + decrement the right variant.
+  variant: z.string().max(200).optional(),
 });
 
 export const cartSchema = z.object({

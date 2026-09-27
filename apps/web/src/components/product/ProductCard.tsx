@@ -11,6 +11,8 @@ interface ProductCardProps {
     nameEn: string;
     nameNe: string;
     price: string | number;
+    mrp?: string | number | null;
+    discountPercent?: number;
     unit: string;
     stockQuantity: number;
     status: string;
@@ -29,6 +31,9 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const name = locale === 'ne' ? product.nameNe : product.nameEn;
   const price = Number(product.price);
+  const discountPercent = Number(product.discountPercent ?? 0);
+  const mrp = product.mrp != null ? Number(product.mrp) : null;
+  const hasDiscount = discountPercent > 0 && mrp != null && mrp > price;
   const image = product.images[0]?.url;
   const isOutOfStock = product.status === 'out_of_stock' || product.stockQuantity === 0;
   const condLabel = conditionLabel(product.condition);
@@ -75,6 +80,11 @@ export default function ProductCard({ product }: ProductCardProps) {
             {condLabel}
           </span>
         )}
+        {hasDiscount && (
+          <span className="absolute top-2 right-2 inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-red-600 text-white shadow">
+            {discountPercent}% OFF
+          </span>
+        )}
         {isOutOfStock && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white text-gray-700">
@@ -87,7 +97,15 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Info */}
       <div className="p-3 flex flex-col flex-1 gap-1">
         <h3 className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug min-h-[2.5rem]">{name}</h3>
-        <p className="text-lg font-bold text-primary-700">{formatPrice(price)}</p>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <p className="text-lg font-bold text-primary-700">{formatPrice(price)}</p>
+          {hasDiscount && (
+            <>
+              <span className="text-xs text-gray-400 line-through">{formatPrice(mrp!)}</span>
+              <span className="text-xs font-semibold text-red-600">{discountPercent}% off</span>
+            </>
+          )}
+        </div>
 
         <div className="mt-auto pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
           <span className="text-xs text-gray-500 truncate">{sellerName ?? product.brand}</span>

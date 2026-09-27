@@ -56,11 +56,17 @@ router.post('/', optionalAuth, async (req, res, next) => {
     const body = parseResult.data as CheckoutInput & GuestCheckoutInput;
 
     // Fetch cart items from body (customer sends cart in request)
-    const cartItems: Array<{ productId: string; quantity: number }> = req.body.items ?? [];
+    const cartItems: Array<{ productId: string; quantity: number; variant?: string }> = req.body.items ?? [];
     if (!cartItems.length) {
       res.status(400).json({ success: false, error: 'Cart is empty' });
       return;
     }
+
+    // Match a variant row to a selected label ("size / color" joined).
+    const variantMatches = (v: { size?: string | null; color?: string | null }, label: string) => {
+      const composed = [v.size, v.color].filter(Boolean).join(' / ');
+      return composed === label;
+    };
 
     // Validate stock and compute totals
     let subtotal = 0;
@@ -76,19 +82,30 @@ router.post('/', optionalAuth, async (req, res, next) => {
         res.status(400).json({ success: false, error: `Product ${item.productId} not found` });
         return;
       }
-      if (product.stockQuantity < item.quantity) {
-        res.status(409).json({ success: false, error: `Insufficient stock for "${product.nameEn}"` });
+      // Resolve the selected variant (if any) for per-variant price + stock.
+      const productVariants = (product.variants as Array<{ size?: string; color?: string; stock?: number; price?: number }> | null) ?? [];
+      const selectedVariant = item.variant
+        ? productVariants.find((v) => variantMatches(v, item.variant!))
+        : undefined;
+
+      // Stock check: against the variant when selected, else the product.
+      const availableStock = selectedVariant ? Number(selectedVariant.stock ?? 0) : product.stockQuantity;
+      if (availableStock < item.quantity) {
+        res.status(409).json({ success: false, error: `Insufficient stock for "${product.nameEn}"${item.variant ? ` (${item.variant})` : ''}` });
         return;
       }
-      const unitPrice = Number(product.price);
+
+      // Price: the selected variant's price when it has one, else product price.
+      const unitPrice = selectedVariant?.price != null ? Number(selectedVariant.price) : Number(product.price);
       const lineTotal = unitPrice * item.quantity;
       subtotal += lineTotal;
 
+      const variantSuffix = item.variant ? ` (${item.variant})` : '';
       lineItems.push({
         productId: product.id,
         sellerId: product.sellerId ?? null, // attribute the line to its seller
-        productNameEn: product.nameEn,
-        productNameNe: product.nameNe,
+        productNameEn: product.nameEn + variantSuffix,
+        productNameNe: product.nameNe + variantSuffix,
         sku: product.sku,
         quantity: item.quantity,
         unitPrice: String(unitPrice),
@@ -145,12 +162,28 @@ router.post('/', optionalAuth, async (req, res, next) => {
         note: isCod ? 'Order placed (Cash on Delivery)' : 'Order placed',
       });
 
-      // Decrement stock
+      // Decrement stock. Always reduce the product-level total; when a variant
+      // was selected, also decrement that variant's stock inside the jsonb.
       for (const item of cartItems) {
-        await tx
-          .update(products)
-          .set({ stockQuantity: sql`stock_quantity - ${item.quantity}`, updatedAt: new Date() })
-          .where(eq(products.id, item.productId));
+        if (item.variant) {
+          const prod = await tx.query.products.findFirst({
+            where: eq(products.id, item.productId),
+            columns: { variants: true },
+          });
+          const vs = (prod?.variants as Array<{ size?: string; color?: string; stock?: number }> | null) ?? [];
+          const nextVs = vs.map((v) =>
+            variantMatches(v, item.variant!) ? { ...v, stock: Math.max(0, Number(v.stock ?? 0) - item.quantity) } : v,
+          );
+          await tx
+            .update(products)
+            .set({ variants: nextVs, stockQuantity: sql`stock_quantity - ${item.quantity}`, updatedAt: new Date() })
+            .where(eq(products.id, item.productId));
+        } else {
+          await tx
+            .update(products)
+            .set({ stockQuantity: sql`stock_quantity - ${item.quantity}`, updatedAt: new Date() })
+            .where(eq(products.id, item.productId));
+        }
       }
 
       return [newOrder];

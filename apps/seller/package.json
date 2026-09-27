@@ -14,6 +14,7 @@
     "@mkelectric/shared": "workspace:*",
     "@tanstack/react-query": "5.51.1",
     "axios": "1.7.2",
+    "exceljs": "^4.4.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hot-toast": "2.4.1",

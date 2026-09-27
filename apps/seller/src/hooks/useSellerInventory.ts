@@ -73,6 +73,25 @@ export function useDeleteMyProduct() {
   });
 }
 
+export interface BulkUploadResult {
+  created: number;
+  failedCount: number;
+  failed: Array<{ row: number; title: string; error: string }>;
+}
+
+// Bulk-create products from parsed CSV rows.
+export function useBulkUpload() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: Record<string, unknown>[]) => {
+      const { data } = await api.post('/products/seller/bulk', { rows });
+      return data.data as BulkUploadResult;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-products'] }); },
+    onError: (err: any) => toast.error(err.response?.data?.error ?? 'Bulk upload failed'),
+  });
+}
+
 export function useUploadMyProductImage(productId: string) {
   const qc = useQueryClient();
   return useMutation({

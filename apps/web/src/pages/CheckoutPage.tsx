@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { useCartStore } from '@/store/cart.store';
+import { useCartStore, cartLineKey } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { usePlaceOrder } from '@/hooks/useOrders';
 import { usePaymentConfig } from '@/hooks/usePaymentConfig';
@@ -86,7 +86,7 @@ export default function CheckoutPage() {
       deliveryAddress: { street: form.street, city: form.city, district: form.district },
       paymentType,
       notes: form.notes || undefined,
-      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, variant: i.variant })),
     };
 
     let result;
@@ -223,7 +223,7 @@ export default function CheckoutPage() {
               {items.map((item) => {
                 const name = locale === 'ne' ? item.name.ne : item.name.en;
                 return (
-                  <div key={item.productId} className="flex items-center gap-3">
+                  <div key={cartLineKey(item)} className="flex items-center gap-3">
                     {item.image && <img src={item.image} alt={name} className="h-12 w-12 rounded-lg object-cover shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{name}</p>

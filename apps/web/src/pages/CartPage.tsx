@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCartStore } from '@/store/cart.store';
+import { useCartStore, cartLineKey } from '@/store/cart.store';
 import type { Locale } from '@mkelectric/shared';
 
 export default function CartPage() {
@@ -34,8 +34,9 @@ export default function CartPage() {
         <div className="md:col-span-2 space-y-4">
           {items.map((item) => {
             const name = locale === 'ne' ? item.name.ne : item.name.en;
+            const lineKey = cartLineKey(item);
             return (
-              <div key={item.productId} className="card p-4 flex gap-4">
+              <div key={lineKey} className="card p-4 flex gap-4">
                 {/* Thumbnail */}
                 <div className="h-20 w-20 shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                   {item.image ? (
@@ -58,12 +59,12 @@ export default function CartPage() {
                     {/* Quantity stepper */}
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        onClick={() => updateQuantity(lineKey, item.quantity - 1)}
                         className="h-8 w-8 min-h-0 min-w-0 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 text-sm"
                       >−</button>
                       <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        onClick={() => updateQuantity(lineKey, item.quantity + 1)}
                         disabled={item.quantity >= item.stock}
                         className="h-8 w-8 min-h-0 min-w-0 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 text-sm disabled:opacity-50"
                       >+</button>
@@ -74,7 +75,7 @@ export default function CartPage() {
                         NPR {(item.price * item.quantity).toLocaleString()}
                       </span>
                       <button
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => removeItem(lineKey)}
                         className="text-red-400 hover:text-red-600 transition-colors"
                         aria-label={t('cart.remove')}
                       >

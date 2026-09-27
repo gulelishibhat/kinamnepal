@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, and, gte, lte, like, ilike, or, sql, asc, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, like, ilike, or, sql, asc, desc, inArray } from 'drizzle-orm';
 import multer from 'multer';
 import { db } from '../db/index.js';
 import { products, productImages, categories } from '../db/schema.js';
@@ -12,6 +12,7 @@ import {
   productQuerySchema,
   createCategorySchema,
   updateCategorySchema,
+  bulkProductUploadSchema,
 } from '@mkelectric/shared';
 
 const router = Router();
@@ -43,20 +44,34 @@ function sumVariantStock(variants: VariantInput[] | undefined): number | null {
 //  CATEGORIES (public read, admin write)
 // ════════════════════════════════════════════════════════════════
 
-router.get('/categories', async (_req, res, next) => {
+router.get('/categories', async (req, res, next) => {
   try {
     const cats = await db.query.categories.findMany({ orderBy: (c, { asc }) => [asc(c.sortOrder)] });
-    // Attach a live count of active listings per category (HamroBazaar-style "N Ads").
+    // Live count of active listings per category ("N Ads").
     const counts = await db
       .select({ categoryId: products.categoryId, count: sql<number>`count(*)` })
       .from(products)
       .where(and(eq(products.isDeleted, false), eq(products.status, 'active')))
       .groupBy(products.categoryId);
     const countMap = new Map(counts.map((c) => [c.categoryId, Number(c.count)]));
-    res.json({
-      success: true,
-      data: cats.map((c) => ({ ...c, adCount: countMap.get(c.id) ?? 0 })),
+
+    const withCount = cats.map((c) => ({ ...c, adCount: countMap.get(c.id) ?? 0 }));
+
+    // ?flat=true → legacy flat list (all categories). Default → nested tree.
+    if (req.query['flat'] === 'true') {
+      res.json({ success: true, data: withCount });
+      return;
+    }
+
+    // Build a nested tree: top-level (parentId null) each with a children array.
+    const tops = withCount.filter((c) => !c.parentId);
+    const childrenOf = (parentId: string) => withCount.filter((c) => c.parentId === parentId);
+    const tree = tops.map((t) => {
+      const children = childrenOf(t.id);
+      const totalAdCount = children.reduce((s, ch) => s + ch.adCount, t.adCount);
+      return { ...t, children, totalAdCount };
     });
+    res.json({ success: true, data: tree });
   } catch (err) { next(err); }
 });
 
@@ -67,6 +82,7 @@ router.post('/categories', authenticate, requireAdmin, validate(createCategorySc
       nameEn: body.name.en,
       nameNe: body.name.ne,
       slug: body.slug,
+      parentId: body.parentId ?? null,
       sortOrder: body.sortOrder ?? 0,
     }).returning();
     res.status(201).json({ success: true, data: cat });
@@ -79,6 +95,7 @@ router.put('/categories/:id', authenticate, requireAdmin, validate(updateCategor
     const updates: Partial<typeof categories.$inferInsert> = {};
     if (body.name) { updates.nameEn = body.name.en; updates.nameNe = body.name.ne; }
     if (body.slug) updates.slug = body.slug;
+    if (body.parentId !== undefined) updates.parentId = body.parentId;
     if (body.sortOrder !== undefined) updates.sortOrder = body.sortOrder;
 
     const [cat] = await db.update(categories).set(updates).where(eq(categories.id, req.params['id']!)).returning();
@@ -112,19 +129,57 @@ router.get('/', validate(productQuerySchema, 'query'), async (req, res, next) =>
     if (q.inStock) conditions.push(gte(products.stockQuantity, 1));
     if (q.minPrice) conditions.push(gte(products.price, String(q.minPrice)));
     if (q.maxPrice) conditions.push(lte(products.price, String(q.maxPrice)));
+
+    // ── Search: match product name / brand / description AND category or
+    //    subcategory name. When a category name matches, we surface products in
+    //    that category and (if it's a top-level) all of its subcategories.
+    let relevance: ReturnType<typeof sql> | null = null;
     if (q.search) {
-      const term = `%${q.search}%`;
-      conditions.push(or(
+      const raw = q.search.trim();
+      const term = `%${raw}%`;
+
+      // Category IDs whose own name matches the term.
+      const allCats = await db.query.categories.findMany();
+      const directCatIds = new Set(
+        allCats.filter((c) => c.nameEn.toLowerCase().includes(raw.toLowerCase()) || c.nameNe.includes(raw)).map((c) => c.id),
+      );
+      // Expand: include children of any matched category (so "Electrical"
+      // surfaces products filed under its subcategories too).
+      const matchedCatIds = new Set(directCatIds);
+      for (const c of allCats) {
+        if (c.parentId && directCatIds.has(c.parentId)) matchedCatIds.add(c.id);
+      }
+
+      const searchParts = [
         ilike(products.nameEn, term),
         ilike(products.nameNe, term),
         ilike(products.brand, term),
         ilike(products.descriptionEn, term),
-      )!);
+        ilike(products.descriptionNe, term),
+      ];
+      if (matchedCatIds.size > 0) {
+        searchParts.push(inArray(products.categoryId, Array.from(matchedCatIds)));
+      }
+      conditions.push(or(...searchParts)!);
+
+      // Relevance score — lower number = more relevant. Name first, then brand,
+      // then category membership, then description.
+      relevance = sql`(
+        case
+          when ${products.nameEn} ilike ${term} or ${products.nameNe} ilike ${term} then 0
+          when ${products.brand} ilike ${term} then 1
+          when ${matchedCatIds.size > 0 ? inArray(products.categoryId, Array.from(matchedCatIds)) : sql`false`} then 2
+          else 3
+        end
+      )`;
     }
 
+    // Explicit price sorts always win. Otherwise, when searching, rank by
+    // relevance (name → brand → category → description), then newest.
     const orderBy =
       q.sort === 'price_asc' ? [asc(products.price)]
       : q.sort === 'price_desc' ? [desc(products.price)]
+      : relevance ? [asc(relevance), desc(products.createdAt)]
       : [desc(products.createdAt)];
 
     const offset = (q.page - 1) * q.limit;
@@ -230,6 +285,53 @@ router.get('/seller/mine', authenticate, requireSeller, validate(productQuerySch
   } catch (err) { next(err); }
 });
 
+// ── SELLER — download own inventory as CSV ──────────────────────────────────
+// Returns every non-deleted product owned by the seller as a CSV file the
+// seller can open in Excel/Sheets. Declared before "/seller/mine/:id" writes.
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  // Quote if the value contains comma, quote, or newline; escape inner quotes.
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+router.get('/seller/mine/export', authenticate, requireSeller, async (req, res, next) => {
+  try {
+    const sellerId = req.user!.sub;
+    const rows = await db.query.products.findMany({
+      where: and(eq(products.sellerId, sellerId), eq(products.isDeleted, false)),
+      with: { category: true },
+      orderBy: [desc(products.createdAt)],
+    });
+
+    const header = [
+      'SKU', 'Name', 'Brand', 'Category', 'Price', 'Unit',
+      'Stock', 'Low Stock Threshold', 'Condition', 'Status', 'Created At',
+    ];
+    const lines = [header.join(',')];
+    for (const p of rows) {
+      lines.push([
+        p.sku,
+        p.nameEn,
+        p.brand,
+        (p as any).category?.nameEn ?? '',
+        p.price,
+        p.unit,
+        p.stockQuantity,
+        p.lowStockThreshold,
+        p.condition,
+        p.status,
+        p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
+      ].map(csvCell).join(','));
+    }
+    // Prepend a BOM so Excel opens UTF-8 (Nepali text) correctly.
+    const csv = '\uFEFF' + lines.join('\r\n');
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="inventory-${stamp}.csv"`);
+    res.send(csv);
+  } catch (err) { next(err); }
+});
+
 router.post('/seller/mine', authenticate, requireSeller, validate(createProductSchema), async (req, res, next) => {
   try {
     const body = req.body as import('@mkelectric/shared').CreateProductInput;
@@ -245,6 +347,8 @@ router.post('/seller/mine', authenticate, requireSeller, validate(createProductS
       brand: body.brand,
       sku: (body.sku ?? '').trim() || generateSku(body.name.en),
       price: String(body.price),
+      mrp: body.mrp != null ? String(body.mrp) : null,
+      discountPercent: body.discountPercent ?? 0,
       unit: body.unit,
       // If variants are given, total stock = sum of their stock.
       stockQuantity: variantStock ?? body.stockQuantity,
@@ -255,6 +359,74 @@ router.post('/seller/mine', authenticate, requireSeller, validate(createProductS
       status: body.status ?? 'active',
     }).returning();
     res.status(201).json({ success: true, data: product });
+  } catch (err) { next(err); }
+});
+
+// ── Bulk create from CSV rows ──────────────────────────────────────────────
+// Accepts { rows: [...] }. Validates each row, maps category by name, creates
+// the valid ones for the authenticated seller, and returns a per-row report.
+const VALID_UNITS = ['piece', 'meter', 'pack', 'set', 'roll', 'box'];
+const CONDITION_MAP: Record<string, string> = {
+  'brand new': 'brand_new', 'brand_new': 'brand_new', 'new': 'brand_new',
+  'like new': 'like_new', 'like_new': 'like_new',
+  'used': 'used', 'second hand': 'used', 'secondhand': 'used',
+};
+
+router.post('/seller/bulk', authenticate, requireSeller, validate(bulkProductUploadSchema), async (req, res, next) => {
+  try {
+    const sellerId = req.user!.sub;
+    const { rows } = req.body as import('@mkelectric/shared').BulkProductUploadInput;
+
+    // Load categories once and build a case-insensitive name → id map.
+    const cats = await db.query.categories.findMany();
+    const catByName = new Map(cats.map((c) => [c.nameEn.trim().toLowerCase(), c.id]));
+
+    let created = 0;
+    const failed: Array<{ row: number; title: string; error: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i]!;
+      const rowNum = i + 2; // account for the header row in the CSV (row 1)
+      const title = String(r.title ?? '').trim();
+      try {
+        if (!title) throw new Error('Title is required');
+        const catId = catByName.get(String(r.category ?? '').trim().toLowerCase());
+        if (!catId) throw new Error(`Unknown category "${r.category}"`);
+        const price = Number(r.price);
+        if (!price || price <= 0) throw new Error('Price must be greater than 0');
+        const stock = Number(r.stock);
+        if (!Number.isInteger(stock) || stock < 0) throw new Error('Stock must be a whole number ≥ 0');
+        const unit = VALID_UNITS.includes(String(r.unit ?? '').trim().toLowerCase())
+          ? String(r.unit).trim().toLowerCase()
+          : 'piece';
+        const condition = CONDITION_MAP[String(r.condition ?? '').trim().toLowerCase()] ?? 'brand_new';
+        const desc = String(r.description ?? '').trim() || title;
+
+        await db.insert(products).values({
+          nameEn: title,
+          nameNe: title,
+          descriptionEn: desc,
+          descriptionNe: desc,
+          categoryId: catId,
+          sellerId,
+          brand: String(r.brand ?? '').trim() || '—',
+          sku: String(r.sku ?? '').trim() || generateSku(title),
+          price: String(price),
+          unit: unit as 'piece' | 'meter' | 'pack' | 'set' | 'roll' | 'box',
+          stockQuantity: stock,
+          lowStockThreshold: 5,
+          specifications: [],
+          variants: [],
+          condition: condition as 'brand_new' | 'like_new' | 'used',
+          status: 'active',
+        });
+        created++;
+      } catch (rowErr: any) {
+        failed.push({ row: rowNum, title: title || '(no title)', error: rowErr?.message ?? 'Invalid row' });
+      }
+    }
+
+    res.status(201).json({ success: true, data: { created, failedCount: failed.length, failed } });
   } catch (err) { next(err); }
 });
 
@@ -282,6 +454,8 @@ router.put('/seller/mine/:id', authenticate, requireSeller, validate(updateProdu
     if (body.brand) updates.brand = body.brand;
     if (body.sku) updates.sku = body.sku;
     if (body.price !== undefined) updates.price = String(body.price);
+    if (body.mrp !== undefined) updates.mrp = body.mrp != null ? String(body.mrp) : null;
+    if (body.discountPercent !== undefined) updates.discountPercent = body.discountPercent;
     if (body.unit) updates.unit = body.unit;
     if (body.lowStockThreshold !== undefined) updates.lowStockThreshold = body.lowStockThreshold;
     if (body.specifications) updates.specifications = body.specifications;
@@ -354,6 +528,8 @@ router.post('/', authenticate, requireAdmin, validate(createProductSchema), asyn
       brand: body.brand,
       sku: (body.sku ?? '').trim() || generateSku(body.name.en),
       price: String(body.price),
+      mrp: body.mrp != null ? String(body.mrp) : null,
+      discountPercent: body.discountPercent ?? 0,
       unit: body.unit,
       stockQuantity: body.stockQuantity,
       lowStockThreshold: body.lowStockThreshold ?? 5,
@@ -376,6 +552,8 @@ router.put('/:id', authenticate, requireAdmin, validate(updateProductSchema), as
     if (body.brand) updates.brand = body.brand;
     if (body.sku) updates.sku = body.sku;
     if (body.price !== undefined) updates.price = String(body.price);
+    if (body.mrp !== undefined) updates.mrp = body.mrp != null ? String(body.mrp) : null;
+    if (body.discountPercent !== undefined) updates.discountPercent = body.discountPercent;
     if (body.unit) updates.unit = body.unit;
     if (body.stockQuantity !== undefined) updates.stockQuantity = body.stockQuantity;
     if (body.lowStockThreshold !== undefined) updates.lowStockThreshold = body.lowStockThreshold;
