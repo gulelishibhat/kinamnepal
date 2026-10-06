@@ -4,7 +4,7 @@ import Modal from '@/components/ui/Modal';
 import Spinner from '@/components/ui/Spinner';
 import { api } from '@/lib/api';
 import {
-  useMyProduct, useCreateMyProduct, useUpdateMyProduct, useCategories,
+  useMyProduct, useCreateMyProduct, useUpdateMyProduct, useCategories, toCategoryOptions,
 } from '@/hooks/useSellerInventory';
 
 interface Props { open: boolean; onClose: () => void; editId: string | null; }
@@ -33,17 +33,19 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
   const isEdit = !!editId;
   const { data: existing, isLoading } = useMyProduct(editId ?? '');
   const { data: categories } = useCategories();
+  const categoryOptions = toCategoryOptions(categories as any);
   const create = useCreateMyProduct();
   const update = useUpdateMyProduct(editId ?? '');
 
   const empty = {
     nameEn: '', descriptionEn: '', categoryId: '', brand: '', sku: '',
-    price: '' as unknown as number, unit: 'piece' as const, stockQuantity: 1, condition: 'brand_new' as const,
+    price: '' as unknown as number, mrp: '' as unknown as number, discountPercent: 0,
+    unit: 'piece' as const, stockQuantity: 1, condition: 'brand_new' as const,
   };
   const [form, setForm] = useState(empty);
   const [images, setImages] = useState<File[]>([]);
-  // Optional size/colour variants with per-combo stock.
-  type VariantRow = { size: string; color: string; stock: number };
+  // Optional size/colour variants with per-combo stock and (optional) price.
+  type VariantRow = { size: string; color: string; stock: number; price: number | ''; mrp: number | '' };
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [uploading, setUploading] = useState(false);
   // How many images the listing already has (edit mode) — counts toward the max of 3.
@@ -55,11 +57,15 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
       setForm({
         nameEn: existing.nameEn, descriptionEn: existing.descriptionEn,
         categoryId: existing.categoryId, brand: existing.brand, sku: existing.sku,
-        price: Number(existing.price), unit: existing.unit,
+        price: Number(existing.price),
+        mrp: (existing as any).mrp != null ? Number((existing as any).mrp) : ('' as unknown as number),
+        discountPercent: Number((existing as any).discountPercent ?? 0),
+        unit: existing.unit,
         stockQuantity: existing.stockQuantity, condition: existing.condition ?? 'brand_new',
       });
       setVariants(Array.isArray(existing.variants) ? existing.variants.map((v: any) => ({
         size: v.size ?? '', color: v.color ?? '', stock: Number(v.stock) || 0,
+        price: v.price != null ? Number(v.price) : '', mrp: v.mrp != null ? Number(v.mrp) : '',
       })) : []);
     } else if (!isEdit) {
       setForm(empty);
@@ -71,7 +77,7 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
   const usingVariants = variants.length > 0;
   const variantTotal = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
 
-  function addVariant() { setVariants((v) => [...v, { size: '', color: '', stock: 0 }]); }
+  function addVariant() { setVariants((v) => [...v, { size: '', color: '', stock: 0, price: '', mrp: '' }]); }
   function removeVariant(i: number) { setVariants((v) => v.filter((_, idx) => idx !== i)); }
   function updateVariant(i: number, key: keyof VariantRow, val: string | number) {
     setVariants((v) => v.map((row, idx) => (idx === i ? { ...row, [key]: val } : row)));
@@ -116,12 +122,21 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
     // NE fields reuse EN for simplicity in the seller UI.
     const cleanVariants = variants
       .filter((v) => v.size.trim() || v.color.trim() || v.stock > 0)
-      .map((v) => ({ size: v.size.trim(), color: v.color.trim(), stock: Number(v.stock) || 0 }));
+      .map((v) => {
+        const row: any = { size: v.size.trim(), color: v.color.trim(), stock: Number(v.stock) || 0 };
+        if (v.price !== '' && Number(v.price) > 0) row.price = Number(v.price);
+        if (v.mrp !== '' && Number(v.mrp) > 0) row.mrp = Number(v.mrp);
+        return row;
+      });
+    const mrpNum = form.mrp !== ('' as any) && Number(form.mrp) > 0 ? Number(form.mrp) : null;
     const payload = {
       name: { en: form.nameEn, ne: form.nameEn },
       description: { en: form.descriptionEn || form.nameEn, ne: form.descriptionEn || form.nameEn },
       categoryId: form.categoryId, brand: form.brand || '—', sku: form.sku,
-      price: priceNum, unit: form.unit,
+      price: priceNum,
+      mrp: mrpNum,
+      discountPercent: Number(form.discountPercent) || 0,
+      unit: form.unit,
       // When variants exist, the API sums their stock into the total.
       stockQuantity: cleanVariants.length > 0 ? cleanVariants.reduce((s, v) => s + v.stock, 0) : form.stockQuantity,
       condition: form.condition,
@@ -173,7 +188,9 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
               <label className="block text-xs font-medium text-gray-600 mb-1">Category *</label>
               <select className="input" required value={form.categoryId} onChange={(e) => f('categoryId', e.target.value)}>
                 <option value="">Select…</option>
-                {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.nameEn}</option>)}
+                {categoryOptions.map((c) => (
+                  <option key={c.id} value={c.id}>{c.isChild ? `\u00A0\u00A0\u00A0↳ ${c.nameEn}` : c.nameEn}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -207,6 +224,61 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
               </select>
             </div>
           </div>
+          {/* Discount — MRP (original price) + % off. Optional. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Original price / MRP (Rs.) <span className="text-gray-400">optional</span>
+              </label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                placeholder="e.g. 500"
+                value={form.mrp === ('' as any) ? '' : form.mrp}
+                onChange={(e) => {
+                  const mrpVal = e.target.value === '' ? '' : Number(e.target.value);
+                  setForm((p) => {
+                    // If a discount % is set, keep the selling price in sync with MRP.
+                    const disc = Number(p.discountPercent) || 0;
+                    const next: any = { ...p, mrp: mrpVal };
+                    if (mrpVal !== '' && disc > 0) next.price = Math.round(Number(mrpVal) * (1 - disc / 100) * 100) / 100;
+                    return next;
+                  });
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Discount % <span className="text-gray-400">optional</span>
+              </label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={100}
+                placeholder="e.g. 20"
+                value={form.discountPercent || ''}
+                onChange={(e) => {
+                  const disc = e.target.value === '' ? 0 : Number(e.target.value);
+                  setForm((p) => {
+                    const next: any = { ...p, discountPercent: disc };
+                    // If MRP is known, recompute selling price from the discount.
+                    if (p.mrp !== ('' as any) && Number(p.mrp) > 0 && disc > 0) {
+                      next.price = Math.round(Number(p.mrp) * (1 - disc / 100) * 100) / 100;
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          </div>
+          {form.mrp !== ('' as any) && Number(form.mrp) > 0 && Number(form.discountPercent) > 0 && (
+            <p className="text-xs text-green-600 -mt-2">
+              Customer sees Rs. {Number(form.price).toLocaleString('en-IN')} (was Rs. {Number(form.mrp).toLocaleString('en-IN')}, {form.discountPercent}% off).
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Brand</label>
@@ -231,7 +303,7 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-medium text-gray-600">
-                Size / Colour options <span className="text-gray-400">(optional)</span>
+                Options / Variants <span className="text-gray-400">(optional)</span>
               </label>
               <button type="button" onClick={addVariant} className="text-xs font-medium text-primary-700 hover:underline min-h-0 min-w-0">
                 + Add variant
@@ -239,22 +311,27 @@ export default function ProductFormModal({ open, onClose, editId }: Props) {
             </div>
             {variants.length === 0 ? (
               <p className="text-xs text-gray-400">
-                Add variants if your product comes in different sizes or colours (e.g. Red / M — 10 in stock). Leave empty for a single-stock item.
+                Add variants if your product comes in options the customer selects (e.g. size/colour, or a spec). Each variant can have its own price and stock. Leave empty for a single-stock item.
               </p>
             ) : (
               <div className="space-y-2">
-                <div className="grid grid-cols-[1fr_1fr_80px_32px] gap-2 text-[11px] text-gray-500 px-1">
-                  <span>Size</span><span>Colour</span><span>Stock</span><span />
+                <div className="grid grid-cols-[1fr_1fr_70px_80px_80px_28px] gap-2 text-[11px] text-gray-500 px-1">
+                  <span>Option 1</span><span>Option 2</span><span>Stock</span><span>Price</span><span>MRP</span><span />
                 </div>
                 {variants.map((v, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_80px_32px] gap-2 items-center">
-                    <input className="input py-1.5 text-sm" placeholder="e.g. M" value={v.size} onChange={(e) => updateVariant(i, 'size', e.target.value)} />
+                  <div key={i} className="grid grid-cols-[1fr_1fr_70px_80px_80px_28px] gap-2 items-center">
+                    <input className="input py-1.5 text-sm" placeholder="e.g. M / spec" value={v.size} onChange={(e) => updateVariant(i, 'size', e.target.value)} />
                     <input className="input py-1.5 text-sm" placeholder="e.g. Red" value={v.color} onChange={(e) => updateVariant(i, 'color', e.target.value)} />
                     <input className="input py-1.5 text-sm" type="number" min={0} value={v.stock} onChange={(e) => updateVariant(i, 'stock', Number(e.target.value))} />
+                    <input className="input py-1.5 text-sm" type="number" min={0} placeholder="—" value={v.price === '' ? '' : v.price} onChange={(e) => updateVariant(i, 'price', e.target.value === '' ? '' : Number(e.target.value))} />
+                    <input className="input py-1.5 text-sm" type="number" min={0} placeholder="—" value={v.mrp === '' ? '' : v.mrp} onChange={(e) => updateVariant(i, 'mrp', e.target.value === '' ? '' : Number(e.target.value))} />
                     <button type="button" onClick={() => removeVariant(i)} className="h-8 w-8 min-h-0 min-w-0 flex items-center justify-center text-gray-400 hover:text-red-500" aria-label="Remove variant">×</button>
                   </div>
                 ))}
-                <p className="text-xs text-gray-500">Total stock from variants: <span className="font-semibold">{variantTotal}</span></p>
+                <p className="text-xs text-gray-500">
+                  Total stock from variants: <span className="font-semibold">{variantTotal}</span>.
+                  Leave Price blank to use the product price for that option.
+                </p>
               </div>
             )}
           </div>

@@ -74,6 +74,9 @@ export const env = {
   EMAIL_DRIVER: optional('EMAIL_DRIVER', APP_ENV === 'local' ? 'console' : 'ses') as 'console' | 'ses',
   EMAIL_FROM: optional('EMAIL_FROM', 'noreply@mkelectric.com'),
   EMAIL_FROM_NAME: optional('EMAIL_FROM_NAME', 'KinamNepal'),
+  // Internal alert inbox (must be an SES-verified address while in sandbox).
+  // Gets notified when someone registers so their email can be SES-verified.
+  ADMIN_ALERT_EMAIL: optional('ADMIN_ALERT_EMAIL', 'gulelishibhat@gmail.com'),
   // Base URL of the API itself — verification links point back here.
   VERIFY_REDIRECT_WEB: optional('VERIFY_REDIRECT_WEB', 'http://localhost:5173'),
   VERIFY_REDIRECT_SELLER: optional('VERIFY_REDIRECT_SELLER', 'http://localhost:5175'),

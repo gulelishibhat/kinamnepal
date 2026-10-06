@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAdminSellers } from '@/hooks/useSellers';
+import { useAdminSellers, useDeleteSeller, type AdminSeller } from '@/hooks/useSellers';
 import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
+import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 export default function SellersPage() {
   const navigate = useNavigate();
   const { data: sellers, isLoading } = useAdminSellers();
+  const del = useDeleteSeller();
   const [search, setSearch] = useState('');
+  const [toDelete, setToDelete] = useState<AdminSeller | null>(null);
 
   const filtered = (sellers ?? []).filter((s) => {
     if (!search.trim()) return true;
@@ -88,7 +91,7 @@ export default function SellersPage() {
                         {s.emailVerified === false && <Badge variant="yellow">Unverified</Badge>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Link
                         to={`/sellers/${s.id}`}
                         onClick={(e) => e.stopPropagation()}
@@ -96,6 +99,12 @@ export default function SellersPage() {
                       >
                         View →
                       </Link>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setToDelete(s); }}
+                        className="ml-3 text-red-500 hover:text-red-700 hover:underline text-xs font-medium"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -104,6 +113,16 @@ export default function SellersPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
+        title="Delete Seller"
+        itemLabel={toDelete ? `${toDelete.shopName}${toDelete.email ? ` (${toDelete.email})` : ''}` : undefined}
+        message="This deactivates the seller account and removes all of their listings from the marketplace. This action cannot be undone."
+        loading={del.isPending}
+      />
     </div>
   );
 }

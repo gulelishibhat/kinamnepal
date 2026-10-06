@@ -46,11 +46,33 @@ function canTransition(from: string, to: string): boolean {
 
 router.post('/', optionalAuth, async (req, res, next) => {
   try {
-    const isLoggedIn = !!req.user;
+    // Only a CUSTOMER token attributes the order to a customer account. A
+    // seller/admin token (someone browsing the storefront while logged into
+    // another portal) is treated as a guest checkout — otherwise we'd try to
+    // set customer_id to a non-customer id and hit a foreign-key error (500).
+    const isCustomer = req.user?.role === 'customer';
+    // Verify the customer actually exists (defensive: stale token after a
+    // deleted account would otherwise also cause an FK violation).
+    let customerId: string | null = null;
+    if (isCustomer) {
+      const c = await db.query.customers.findFirst({
+        where: and(eq(customers.id, req.user!.sub), eq(customers.isDeleted, false)),
+        columns: { id: true },
+      });
+      customerId = c?.id ?? null;
+    }
+    const isLoggedIn = !!customerId;
+
     const schema = isLoggedIn ? checkoutSchema : guestCheckoutSchema;
     const parseResult = schema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(422).json({ success: false, error: 'Validation failed', details: parseResult.error.flatten().fieldErrors });
+      res.status(422).json({
+        success: false,
+        error: isLoggedIn
+          ? 'Validation failed'
+          : 'To place this order please provide your name and phone, or log in with a customer account.',
+        details: parseResult.error.flatten().fieldErrors,
+      });
       return;
     }
     const body = parseResult.data as CheckoutInput & GuestCheckoutInput;
@@ -126,7 +148,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
     const [order] = await db.transaction(async (tx) => {
       const [newOrder] = await tx.insert(orders).values({
         orderNumber,
-        customerId: isLoggedIn ? req.user!.sub : null,
+        customerId,
         guestName: body.guestName ?? null,
         guestPhone: body.guestPhone ?? null,
         guestEmail: body.guestEmail ?? null,
@@ -190,8 +212,8 @@ router.post('/', optionalAuth, async (req, res, next) => {
     });
 
     // Post-order side effects (non-blocking)
-    const customerName = isLoggedIn
-      ? (await db.query.customers.findFirst({ where: eq(customers.id, req.user!.sub) }))?.name ?? 'Customer'
+    const customerName = customerId
+      ? (await db.query.customers.findFirst({ where: eq(customers.id, customerId) }))?.name ?? 'Customer'
       : (body.guestName ?? 'Guest');
 
     broadcastToAdmins('new_order', {

@@ -18,6 +18,7 @@ const router = Router();
 router.get('/admin/all', authenticate, requireAdmin, async (_req, res, next) => {
   try {
     const rows = await db.query.sellers.findMany({
+      where: eq(sellers.isActive, true),
       orderBy: (s, { desc: d }) => [d(s.createdAt)],
     });
 
@@ -279,6 +280,35 @@ router.get('/me/orders/:id', authenticate, requireSeller, async (req, res, next)
         statusHistory: order.statusHistory,
       },
     });
+  } catch (err) { next(err); }
+});
+
+// ─── DELETE /sellers/admin/:id — admin soft-delete ───────────────────────────
+// Deactivates the seller (can no longer log in / appear) and soft-deletes all
+// of their products so their listings disappear from the storefront. Existing
+// orders that reference the seller are preserved for records.
+router.delete('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const id = req.params['id']!;
+    const seller = await db.query.sellers.findFirst({ where: eq(sellers.id, id) });
+    if (!seller || !seller.isActive) {
+      res.status(404).json({ success: false, error: 'Seller not found' });
+      return;
+    }
+    // Soft-delete all of this seller's products.
+    const removed = await db.update(products)
+      .set({ isDeleted: true, status: 'inactive', updatedAt: new Date() })
+      .where(and(eq(products.sellerId, id), eq(products.isDeleted, false)))
+      .returning({ id: products.id });
+    // Deactivate the seller account and free the email for re-registration.
+    await db.update(sellers).set({
+      isActive: false,
+      email: `deleted+${id}@removed.local`,
+      verificationToken: null,
+      resetToken: null,
+      updatedAt: new Date(),
+    }).where(eq(sellers.id, id));
+    res.json({ success: true, data: { id, productsRemoved: removed.length } });
   } catch (err) { next(err); }
 });
 

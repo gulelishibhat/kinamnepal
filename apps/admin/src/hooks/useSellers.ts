@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 
 // Full seller directory (admin sees private contact/address + listing counts).
@@ -33,6 +34,22 @@ export function useAdminSellerProducts(sellerId: string) {
       return data.data as any[];
     },
     enabled: !!sellerId,
+  });
+}
+
+// Admin: remove a seller (deactivates account + soft-deletes their products).
+export function useDeleteSeller() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/sellers/admin/${id}`);
+      return data.data as { id: string; productsRemoved: number };
+    },
+    onSuccess: (d) => {
+      qc.invalidateQueries({ queryKey: ['admin-sellers'] });
+      toast.success(`Seller deleted${d?.productsRemoved ? ` (${d.productsRemoved} listings removed)` : ''}`);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error ?? 'Failed to delete seller'),
   });
 }
 

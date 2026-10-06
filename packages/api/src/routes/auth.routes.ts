@@ -7,7 +7,7 @@ import { db } from '../db/index.js';
 import { env } from '../config/env.js';
 import { customers, admins, sellers, refreshTokens } from '../db/schema.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendSignupAdminAlert } from '../lib/mailer.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
@@ -190,6 +190,9 @@ router.post('/seller/register', validate(registerSellerSchema), async (req, res,
 
     const verifyUrl = `${env.API_HOST}/api/auth/verify-email?token=${verificationToken}&role=seller`;
     sendVerificationEmail(body.email, body.shopName, verifyUrl).catch((e) => console.error('[verify email]', e));
+    // Notify the internal alert inbox so the new email can be SES-verified.
+    sendSignupAdminAlert({ role: 'seller', email: body.email, name: body.shopName, phone: body.phone })
+      .catch((e) => console.error('[signup alert]', e));
 
     const accessToken = signAccessToken(seller.id, 'seller');
     const refreshToken = signRefreshToken(seller.id, 'seller');

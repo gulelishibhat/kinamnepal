@@ -97,9 +97,13 @@ export default function HomePage() {
                 <span className="text-xs font-medium text-gray-700 leading-tight line-clamp-2">
                   {locale === 'ne' ? cat.nameNe : cat.nameEn}
                 </span>
-                {typeof cat.adCount === 'number' && (
-                  <span className="text-[11px] text-gray-400">{cat.adCount} Ads</span>
-                )}
+                {(() => {
+                  // Show total including subcategories when available.
+                  const count = typeof cat.totalAdCount === 'number' ? cat.totalAdCount : cat.adCount;
+                  return typeof count === 'number' ? (
+                    <span className="text-[11px] text-gray-400">{count} Ads</span>
+                  ) : null;
+                })()}
               </Link>
             ))}
           </div>

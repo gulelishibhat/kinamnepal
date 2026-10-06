@@ -25,15 +25,36 @@ export function useMyProduct(id: string) {
   });
 }
 
+// Flat list of ALL categories (top-level + subcategories). Sellers assign
+// products to any of them, so we need the flat list (not the nested tree).
 export function useCategories() {
   return useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', 'flat'],
     queryFn: async () => {
-      const { data } = await api.get('/products/categories');
-      return data.data;
+      const { data } = await api.get('/products/categories', { params: { flat: 'true' } });
+      return data.data as Array<{ id: string; nameEn: string; nameNe: string; parentId: string | null; sortOrder: number }>;
     },
     staleTime: 1000 * 60 * 10,
   });
+}
+
+// Build an ordered, hierarchical list: each top-level followed by its children,
+// with a `depth` and a display label ("Parent → Child") for dropdowns/templates.
+export interface CategoryOption { id: string; label: string; nameEn: string; depth: number; isChild: boolean; }
+export function toCategoryOptions(
+  cats: Array<{ id: string; nameEn: string; parentId: string | null; sortOrder: number }> | undefined,
+): CategoryOption[] {
+  if (!cats) return [];
+  const tops = cats.filter((c) => !c.parentId).sort((a, b) => a.sortOrder - b.sortOrder || a.nameEn.localeCompare(b.nameEn));
+  const childrenOf = (id: string) => cats.filter((c) => c.parentId === id).sort((a, b) => a.sortOrder - b.sortOrder || a.nameEn.localeCompare(b.nameEn));
+  const out: CategoryOption[] = [];
+  for (const t of tops) {
+    out.push({ id: t.id, label: t.nameEn, nameEn: t.nameEn, depth: 0, isChild: false });
+    for (const c of childrenOf(t.id)) {
+      out.push({ id: c.id, label: `${t.nameEn} → ${c.nameEn}`, nameEn: c.nameEn, depth: 1, isChild: true });
+    }
+  }
+  return out;
 }
 
 export function useCreateMyProduct() {

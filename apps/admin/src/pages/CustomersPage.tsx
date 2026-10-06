@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useAdminCustomers } from '@/hooks/useCustomers';
+import { useAdminCustomers, useDeleteCustomer } from '@/hooks/useCustomers';
 import Spinner from '@/components/ui/Spinner';
+import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 export default function CustomersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const del = useDeleteCustomer();
+  const [toDelete, setToDelete] = useState<any | null>(null);
   const params = {
     page: Number(searchParams.get('page') ?? 1),
     search: searchParams.get('search') || undefined,
@@ -62,8 +66,14 @@ export default function CustomersPage() {
                     <td className="px-4 py-3 text-right font-semibold">{c.totalOrders}</td>
                     <td className="px-4 py-3 text-gray-500">{c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString() : '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Link to={`/customers/${c.id}`} className="text-primary-700 hover:underline text-xs font-medium">View →</Link>
+                      <button
+                        onClick={() => setToDelete(c)}
+                        className="ml-3 text-red-500 hover:text-red-700 hover:underline text-xs font-medium"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -83,6 +93,16 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && del.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
+        title="Delete Customer"
+        itemLabel={toDelete ? `${toDelete.name}${toDelete.email ? ` (${toDelete.email})` : ''}` : undefined}
+        message="This removes the customer account. Their past orders are kept for records. This action cannot be undone."
+        loading={del.isPending}
+      />
     </div>
   );
 }

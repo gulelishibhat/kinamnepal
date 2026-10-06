@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '@/store/cart.store';
 import toast from 'react-hot-toast';
-import { formatPrice, timeAgo, conditionLabel, conditionBadgeClasses } from '@/lib/format';
+import { formatPrice, conditionLabel, conditionBadgeClasses } from '@/lib/format';
 import type { Locale } from '@mkelectric/shared';
 
 interface ProductCardProps {
@@ -20,6 +21,7 @@ interface ProductCardProps {
     brand: string;
     condition?: string;
     createdAt?: string;
+    variants?: Array<{ size?: string; color?: string; stock?: number; price?: number }> | null;
     seller?: { id: string; shopName: string } | null;
   };
 }
@@ -27,6 +29,7 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language as Locale;
+  const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
 
   const name = locale === 'ne' ? product.nameNe : product.nameEn;
@@ -37,12 +40,20 @@ export default function ProductCard({ product }: ProductCardProps) {
   const image = product.images[0]?.url;
   const isOutOfStock = product.status === 'out_of_stock' || product.stockQuantity === 0;
   const condLabel = conditionLabel(product.condition);
-  const posted = timeAgo(product.createdAt);
   const sellerName = product.seller?.shopName;
+  // Products with options (variants) must be configured on the detail page —
+  // the customer needs to pick the spec/size/colour (and its price) first.
+  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
     if (isOutOfStock) return;
+    // If the product has variants, send the buyer to the detail page to choose
+    // an option instead of adding a default/unpriced variant to the cart.
+    if (hasVariants) {
+      navigate(`/products/${product.id}`);
+      return;
+    }
     addItem({
       productId: product.id,
       name: { en: product.nameEn, ne: product.nameNe },
@@ -109,18 +120,32 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <div className="mt-auto pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
           <span className="text-xs text-gray-500 truncate">{sellerName ?? product.brand}</span>
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="h-8 w-8 min-h-0 min-w-0 shrink-0 flex items-center justify-center bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label={t('product.addToCart')}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.4 5.6M7 13l-1.4 5.6m0 0h11.8M17 18a1 1 0 100 2 1 1 0 000-2zm-8 0a1 1 0 100 2 1 1 0 000-2z" />
-            </svg>
-          </button>
+          {hasVariants ? (
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="h-8 min-h-0 shrink-0 flex items-center gap-1 px-2.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+              aria-label="Choose options"
+              title="Select options"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span>Options</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="h-8 w-8 min-h-0 min-w-0 shrink-0 flex items-center justify-center bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label={t('product.addToCart')}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.4 5.6M7 13l-1.4 5.6m0 0h11.8M17 18a1 1 0 100 2 1 1 0 000-2zm-8 0a1 1 0 100 2 1 1 0 000-2z" />
+              </svg>
+            </button>
+          )}
         </div>
-        {posted && <p className="text-[11px] text-gray-400">{posted}</p>}
       </div>
     </Link>
   );

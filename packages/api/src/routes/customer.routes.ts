@@ -134,4 +134,28 @@ router.get('/:id', authenticate, requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── DELETE /customers/:id — admin soft-delete ────────────────────────────────
+// Soft-delete keeps the row (and any linked orders) intact for records; the
+// account is hidden from admin lists and can no longer be used. We also scramble
+// the email so the address can be re-registered later.
+router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const id = req.params['id']!;
+    const existing = await db.query.customers.findFirst({ where: eq(customers.id, id) });
+    if (!existing || existing.isDeleted) {
+      res.status(404).json({ success: false, error: 'Customer not found' });
+      return;
+    }
+    await db.update(customers).set({
+      isDeleted: true,
+      // Free the email/verification for potential re-registration.
+      email: `deleted+${id}@removed.local`,
+      verificationToken: null,
+      resetToken: null,
+      updatedAt: new Date(),
+    }).where(eq(customers.id, id));
+    res.json({ success: true, data: { id } });
+  } catch (err) { next(err); }
+});
+
 export default router;

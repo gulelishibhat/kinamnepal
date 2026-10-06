@@ -60,6 +60,37 @@ export async function sendVerificationEmail(to: string, name: string, verifyUrl:
   await driver.send({ to, subject: `Verify your ${env.STORE_NAME} account`, html });
 }
 
+// ─── Admin alert: someone registered ─────────────────────────────────────────
+// While SES is in sandbox, new users can't receive their verification email
+// until their address is a verified SES identity. This notifies the internal
+// alert inbox (a verified address) so the admin can add + verify the new email.
+export async function sendSignupAdminAlert(params: {
+  role: 'seller' | 'customer';
+  email: string;
+  name: string;
+  phone?: string | null;
+}): Promise<void> {
+  const { role, email, name, phone } = params;
+  const roleLabel = role === 'seller' ? 'Seller (shop)' : 'Customer';
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #e11d48;">${env.STORE_NAME} — New ${roleLabel} signup</h2>
+      <p>A new ${roleLabel.toLowerCase()} just tried to create an account and needs email verification.</p>
+      <table style="border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Type</td><td><strong>${roleLabel}</strong></td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Name</td><td>${name}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Email</td><td><strong>${email}</strong></td></tr>
+        ${phone ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Phone</td><td>${phone}</td></tr>` : ''}
+      </table>
+      <p style="margin-top:16px;color:#6b7280;font-size:13px;">
+        Action: add <strong>${email}</strong> as a verified identity in Amazon SES (Console → SES → Verified identities → Create identity → Email address).
+        Once they confirm the SES verification link, they will receive their ${env.STORE_NAME} verification email.
+      </p>
+    </div>
+  `;
+  await driver.send({ to: env.ADMIN_ALERT_EMAIL, subject: `New ${roleLabel} signup: ${email}`, html });
+}
+
 // ─── Password reset ──────────────────────────────────────────────────────────
 export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string): Promise<void> {
   const html = `

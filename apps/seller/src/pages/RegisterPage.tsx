@@ -6,7 +6,7 @@ import type { RegisterSellerInput } from '@mkelectric/shared';
 export default function RegisterPage() {
   const register = useSellerRegister();
   const [form, setForm] = useState({
-    email: '', password: '', shopName: '', shopDescription: '',
+    email: '', password: '', confirmPassword: '', shopName: '', shopDescription: '',
     ownerName: '', phone: '', addressStreet: '', addressCity: '', addressDistrict: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -18,13 +18,16 @@ export default function RegisterPage() {
     if (!form.email) e.email = 'Email is required';
     if (!form.phone.match(/^(98|97)\d{8}$/)) e.phone = 'Enter a valid Nepali mobile number';
     if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     setErrors(e);
     return !Object.keys(e).length;
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (validate()) register.mutate(form as RegisterSellerInput);
+    if (!validate()) return;
+    const { confirmPassword: _cp, ...input } = form;
+    register.mutate(input as RegisterSellerInput);
   }
 
   return (
@@ -79,6 +82,11 @@ export default function RegisterPage() {
                 <input type="password" className="input" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} autoComplete="new-password" />
                 {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
               </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+              <input type="password" className="input" value={form.confirmPassword} onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))} autoComplete="new-password" />
+              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
             </div>
           </div>
 

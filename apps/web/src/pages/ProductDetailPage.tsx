@@ -6,7 +6,7 @@ import { useCartStore } from '@/store/cart.store';
 import Spinner from '@/components/ui/Spinner';
 import Badge from '@/components/ui/Badge';
 import toast from 'react-hot-toast';
-import { formatPrice, timeAgo, conditionLabel, conditionBadgeClasses } from '@/lib/format';
+import { formatPrice, conditionLabel, conditionBadgeClasses } from '@/lib/format';
 import type { Locale } from '@mkelectric/shared';
 
 export default function ProductDetailPage() {
@@ -108,6 +108,25 @@ export default function ProductDetailPage() {
   // Human label for the chosen option(s), e.g. "B22 / Warm White" or a spec.
   const variantLabel = [hasBase ? selectedBase : '', hasColour ? selectedColour : ''].filter(Boolean).join(' / ');
 
+  // ── Image gallery navigation (arrows + swipe) ──
+  function showImage(index: number) {
+    if (images.length === 0) return;
+    // Wrap around so it loops past the ends.
+    const next = (index + images.length) % images.length;
+    setSelectedImage(next);
+  }
+  function prevImage() { showImage(selectedImage - 1); }
+  function nextImage() { showImage(selectedImage + 1); }
+
+  // Track touch start X to detect a horizontal swipe on mobile.
+  let touchStartX = 0;
+  function onTouchStart(e: React.TouchEvent) { touchStartX = e.touches[0]?.clientX ?? 0; }
+  function onTouchEnd(e: React.TouchEvent) {
+    const endX = e.changedTouches[0]?.clientX ?? 0;
+    const dx = endX - touchStartX;
+    if (Math.abs(dx) > 40) { if (dx < 0) nextImage(); else prevImage(); }
+  }
+
   function handleAddToCart() {
     if (hasVariants && !selectionComplete) {
       toast.error('Please select an option first');
@@ -144,12 +163,17 @@ export default function ProductDetailPage() {
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
         {/* Images */}
         <div className="space-y-4">
-          <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden">
+          <div
+            className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden select-none"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
             {images[selectedImage] ? (
               <img
                 src={images[selectedImage].url}
                 alt={name}
                 className="w-full h-full object-cover"
+                draggable={false}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-200">
@@ -157,6 +181,31 @@ export default function ProductDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01" />
                 </svg>
               </div>
+            )}
+
+            {/* Prev / Next arrows + counter — only when there are 2+ images */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow text-gray-700"
+                  aria-label="Previous image"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow text-gray-700"
+                  aria-label="Next image"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
+                  {selectedImage + 1} / {images.length}
+                </div>
+              </>
             )}
           </div>
           {images.length > 1 && (
@@ -188,10 +237,7 @@ export default function ProductDetailPage() {
               )}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 leading-tight">{name}</h1>
-            <p className="text-sm text-gray-400 mt-1">
-              SKU: {product.sku}
-              {product.createdAt && <span className="ml-2">· Posted {timeAgo(product.createdAt)}</span>}
-            </p>
+            <p className="text-sm text-gray-400 mt-1">SKU: {product.sku}</p>
           </div>
 
           {/* Seller */}
